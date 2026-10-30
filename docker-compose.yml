@@ -1,0 +1,13 @@
+
+services:
+  ifrs17-agent-python:
+    build: .
+    container_name: ifrs17-agent-python-app
+    ports:
+      - "8000:8000"
+    environment:
+      # 告诉容器里的代码，去宿主机找 Ollama
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      # 核心：允许容器访问宿主机的 localhost
+      - "host.docker.internal:host-gateway"

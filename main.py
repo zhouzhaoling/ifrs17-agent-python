@@ -13,10 +13,17 @@ import asyncio
 import json
 from fastapi.middleware.cors import CORSMiddleware
 
+import os
+
+# 默认本地是 localhost，如果在 Docker 里，环境变量会把它覆盖成 host.docker.internal
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
 # ==========================================
 # 1. 初始化本地 RAG 知识库 (保持不变)
 # ==========================================
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+# 1. 向量模型修改
+embeddings = OllamaEmbeddings(model="nomic-embed-text", base_url=OLLAMA_BASE_URL)
+
 vectorstore = Chroma(embedding_function=embeddings, collection_name="ifrs17_rules")
 if vectorstore._collection.count() == 0:
     docs = [
@@ -48,7 +55,7 @@ def query_gl_database(org_name: str) -> str:
 # ==========================================
 def router_node(state: AgentState):
     print(">>> [Router 节点] 正在识别意图...")
-    llm = ChatOllama(model="qwen2.5:7b")
+    llm = ChatOllama(model="qwen2.5:7b", base_url=OLLAMA_BASE_URL)
     prompt = "你是一个财务意图识别助手。请分析用户输入，严格返回以下之一：\n1. DIFF：排查差异。\n2. METRIC：查询口径。\n只输出单词。"
     response = llm.invoke([("system", prompt), ("user", state["question"])])
     intent = response.content.strip()
@@ -58,7 +65,7 @@ def router_node(state: AgentState):
 
 async def diff_analysis_node(state: AgentState):
     print(">>> [差异分析节点] 准备调用工具查库...")
-    llm = ChatOllama(model="qwen2.5:7b")
+    llm = ChatOllama(model="qwen2.5:7b", base_url=OLLAMA_BASE_URL)
     llm_with_tools = llm.bind_tools([query_gl_database])
     response = llm_with_tools.invoke(state["question"])
     
@@ -79,7 +86,7 @@ def query_metric_node(state: AgentState):
 
 async def analyze_node(state: AgentState):
     print(f">>> [汇总分析] 收集到 {len(state['evidence_list'])} 条证据...")
-    llm = ChatOllama(model="qwen2.5:7b")
+    llm = ChatOllama(model="qwen2.5:7b", base_url=OLLAMA_BASE_URL)
     context = "\n".join(state["evidence_list"])
     prompt = f"你是一个财务专家。根据证据回答问题：\n【证据】\n{context}\n\n【问题】\n{state['question']}"
     
@@ -130,12 +137,15 @@ async def stream_generator(question: str, session_id: str):
     yield f"data: {json.dumps({'status': 'Agent 正在思考与查库...'}, ensure_ascii=False)}\n\n"
     
     try:
-        # 👇 核心修改：使用 stream_mode="messages"，直接捕获图中的 LLM Token 流
-        async for msg, metadata in app_graph.astream(init_state, config=config, stream_mode="messages"):
-            # 只捕获 "analyze" 节点（最终生成节点）的大模型输出
-            if metadata.get("langgraph_node") == "analyze":
-                if hasattr(msg, "content") and msg.content:
-                    yield f"data: {json.dumps({'text': msg.content}, ensure_ascii=False)}\n\n"
+        # 👇 更换为 astream_events 捕获底层 token
+        async for event in app_graph.astream_events(init_state, config=config, version="v2"):
+            kind = event["event"]
+            
+            # 只要大模型开始吐字，直接拦截
+            if kind == "on_chat_model_stream":
+                content = event["data"]["chunk"].content
+                if content:
+                    yield f"data: {json.dumps({'text': content}, ensure_ascii=False)}\n\n"
                     
     except Exception as e:
         print(f"❌ 报错: {e}")

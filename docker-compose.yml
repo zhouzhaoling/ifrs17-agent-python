@@ -7,8 +7,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # 告诉容器里的代码，去宿主机找 Ollama
+      # 👈 告诉容器，去找宿主机的 Ollama
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     extra_hosts:
-      # 核心：允许容器访问宿主机的 localhost
+      # 👈 必须加这个，才能让容器访问外部网络
       - "host.docker.internal:host-gateway"

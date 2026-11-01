@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFRS17 智能财务工作台 (Python版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #e5e7eb; padding: 10px; text-align: left; font-size: 14px; }
+        .markdown-body th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 20px; margin-bottom: 10px; font-weight: bold; color: #111827; }
+        .markdown-body p { margin-bottom: 10px; line-height: 1.6; }
+        .markdown-body ul { list-style-type: disc; padding-left: 20px; margin-bottom: 10px; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex overflow-hidden text-gray-800 font-sans">
+
+    <!-- 左侧侧边栏 -->
+    <div class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+        <div class="p-5 border-b border-gray-100">
+            <h1 class="text-xl font-bold text-green-600 flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                IFRS17 Agent
+            </h1>
+            <!-- 👇 改成 Python 专属文案 -->
+            <p class="text-xs text-gray-400 mt-1">Python + FastAPI + LangGraph</p>
+        </div>
+        <div class="p-4 flex-1 overflow-y-auto">
+            <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">技能快捷指令</p>
+            <div class="space-y-2">
+                <button onclick="fillQuestion('帮我查一下上海机构准备金为什么对不上')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-green-50 text-sm text-gray-700 hover:text-green-600 transition-colors flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-red-400"></span> 差异排查 (DIFF)
+                </button>
+                <button onclick="fillQuestion('准备金余额的计算口径是什么？')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-green-50 text-sm text-gray-700 hover:text-green-600 transition-colors flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span> 指标查询 (METRIC)
+                </button>
+                <button onclick="fillQuestion('UAT报错E1001是什么原因？')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-green-50 text-sm text-gray-700 hover:text-green-600 transition-colors flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-yellow-400"></span> 知识问答 (RAG)
+                </button>
+                <button onclick="fillQuestion('帮我生成一份2025年1月上海机构的准备金核算分析报告')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-green-50 text-sm text-gray-700 hover:text-green-600 transition-colors flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span> 报告生成 (REPORT)
+                </button>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-100">
+            <div class="text-xs text-gray-400 text-center">© 2025 IFRS17 Python Architect</div>
+        </div>
+    </div>
+
+    <!-- 右侧主区域 -->
+    <div class="flex-1 flex flex-col h-full relative">
+        <!-- 聊天记录区 -->
+        <div id="chat-container" class="flex-1 overflow-y-auto p-8 space-y-6">
+            <div class="flex gap-4">
+                <div class="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white flex-shrink-0">AI</div>
+                <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm text-sm max-w-3xl border border-gray-100">
+                    您好，我是基于 Python 原生生态构建的 IFRS17 财务助理。请点击左侧指令，或直接提问。
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="bg-white border-t border-gray-200 p-4">
+            <div class="max-w-4xl mx-auto flex gap-3 items-center">
+                <input type="text" id="question-input" placeholder="输入您的问题..." 
+                       class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                       onkeypress="if(event.key === 'Enter') askAgent()">
+                <button onclick="askAgent()" id="send-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-sm">
+                    <span>发送</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                </button>
+            </div>
+            <!-- 👇 改成 Python 专属底座文案 -->
+            <div class="max-w-4xl mx-auto mt-2 text-xs text-center text-gray-400">
+                系统已接入 ContextVar 数据隔离、多源并发 Reducer 与 SQLite 语义层，请放心提问。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fillQuestion(text) {
+            document.getElementById('question-input').value = text;
+            document.getElementById('question-input').focus();
+        }
+
+        function appendMessage(role, content) {
+            const container = document.getElementById('chat-container');
+            const isUser = role === 'user';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`;
+            
+            const avatarHtml = isUser 
+                ? `<div class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white text-xs flex-shrink-0">我</div>`
+                : `<div class="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white flex-shrink-0">AI</div>`;
+            
+            const bubbleHtml = `
+                <div class="p-4 rounded-2xl shadow-sm max-w-3xl text-sm border ${isUser ? 'bg-green-50 border-green-100 rounded-tr-none text-gray-800' : 'bg-white border-gray-100 rounded-tl-none markdown-body'}">
+                    ${isUser ? content : content}
+                </div>
+            `;
+            messageDiv.innerHTML = avatarHtml + bubbleHtml;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            return messageDiv;
+        }
+
+        // 👇 核心：专门为 Python 后端定制的 SSE 流式请求
+        async function askAgent() {
+            const input = document.getElementById('question-input');
+            const question = input.value.trim();
+            if (!question) return;
+
+            appendMessage('user', question);
+            input.value = '';
+
+            const container = document.getElementById('chat-container');
+            const aiBubbleId = 'ai-bubble-' + Date.now();
+            
+            // 创建 AI 空白气泡用于接收流
+            const aiDiv = appendMessage('ai', `<span class="text-gray-400 animate-pulse">Agent 正在思考并调度工具，请稍候...</span>`);
+            aiDiv.id = aiBubbleId;
+            const contentDiv = aiDiv.querySelector('.markdown-body');
+
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            let fullText = "";
+
+            try {
+                // 请求 Python 后端的 SSE 接口 (注意路径和端口，如果你换了端口请在这里改)
+                const eventSource = new EventSource(`/api/agent/chat/stream?question=${encodeURIComponent(question)}&session_id=user_001`);
+
+                eventSource.onmessage = function(event) {
+                    if (event.data === "[DONE]") {
+                        eventSource.close();
+                        // 结束后恢复按钮
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        return;
+                    }
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.status) {
+                            contentDiv.innerHTML = `<span class="text-gray-400 text-xs animate-pulse">${data.status}</span>`;
+                        }
+                        if (data.text) {
+                            fullText += data.text;
+                            // 实时渲染 Markdown
+                            contentDiv.innerHTML = marked.parse(fullText);
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    } catch (e) {
+                        console.error("解析失败", e);
+                    }
+                };
+
+                eventSource.onerror = function() {
+                    eventSource.close();
+                    contentDiv.innerHTML += `<br><span class="text-red-500">连接中断，请检查后端是否启动或 Ollama 是否正常。</span>`;
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+
+            } catch (error) {
+                contentDiv.innerHTML = `<span class="text-red-500">请求出错：${error.message}</span>`;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    </script>
+</body>
+</html>

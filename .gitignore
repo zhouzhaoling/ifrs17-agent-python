@@ -4,3 +4,4 @@ __pycache__/
 .env
 .vscode/
 *.db
+IFRS17_Python分析报告_*.md

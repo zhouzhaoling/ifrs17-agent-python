@@ -27,12 +27,13 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 IFRS17 Agent
             </h1>
-            <!-- 👇 改成 Python 专属文案 -->
             <p class="text-xs text-gray-400 mt-1">Python + FastAPI + LangGraph</p>
         </div>
+        
         <div class="p-4 flex-1 overflow-y-auto">
+            <!-- 快捷指令 -->
             <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">技能快捷指令</p>
-            <div class="space-y-2">
+            <div class="space-y-2 mb-6">
                 <button onclick="fillQuestion('帮我查一下上海机构准备金为什么对不上')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-green-50 text-sm text-gray-700 hover:text-green-600 transition-colors flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-red-400"></span> 差异排查 (DIFF)
                 </button>
@@ -46,7 +47,17 @@
                     <span class="w-2 h-2 rounded-full bg-purple-500"></span> 报告生成 (REPORT)
                 </button>
             </div>
+
+            <!-- 👇 新增：PDF 上传区 -->
+            <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">知识库管理</p>
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <input type="file" id="pdf-upload" accept=".pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-2"/>
+                <button onclick="uploadPDF()" id="upload-btn" class="w-full bg-green-100 text-green-700 font-medium text-xs py-2 rounded hover:bg-green-200 transition-colors">
+                    上传并解析入库
+                </button>
+            </div>
         </div>
+
         <div class="p-4 border-t border-gray-100">
             <div class="text-xs text-gray-400 text-center">© 2025 IFRS17 Python Architect</div>
         </div>
@@ -75,7 +86,6 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                 </button>
             </div>
-            <!-- 👇 改成 Python 专属底座文案 -->
             <div class="max-w-4xl mx-auto mt-2 text-xs text-center text-gray-400">
                 系统已接入 ContextVar 数据隔离、多源并发 Reducer 与 SQLite 语义层，请放心提问。
             </div>
@@ -109,6 +119,45 @@
             return messageDiv;
         }
 
+        // 👇 新增：上传 PDF 逻辑
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdf-upload');
+            const btn = document.getElementById('upload-btn');
+            
+            if (fileInput.files.length === 0) {
+                return alert("请先选择一个 PDF 文件！");
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            // 按钮切换加载状态
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "解析入库中...";
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+
+            try {
+                const response = await fetch('/api/upload_doc', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error("网络请求失败");
+                const data = await response.json();
+                
+                // 在聊天框里提示成功
+                appendMessage('ai', `<span class="text-green-600 font-bold">✅ 系统提示：</span> ${data.message}`);
+                fileInput.value = ""; // 清空文件框
+            } catch (error) {
+                appendMessage('ai', `<span class="text-red-500">上传失败：${error.message}</span>`);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
+        }
+
         // 👇 核心：专门为 Python 后端定制的 SSE 流式请求
         async function askAgent() {
             const input = document.getElementById('question-input');
@@ -133,7 +182,7 @@
             let fullText = "";
 
             try {
-                // 请求 Python 后端的 SSE 接口 (注意路径和端口，如果你换了端口请在这里改)
+                // 请求 Python 后端的 SSE 接口
                 const eventSource = new EventSource(`/api/agent/chat/stream?question=${encodeURIComponent(question)}&session_id=user_001`);
 
                 eventSource.onmessage = function(event) {

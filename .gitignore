@@ -3,5 +3,10 @@ __pycache__/
 *.pyc
 .env
 .vscode/
+data/
+uploads/
+# 忽略所有本地生成的数据库和测试报告
 *.db
-IFRS17_Python分析报告_*.md
+IFRS17_*.md
+*.xlsx
+*.pdf
